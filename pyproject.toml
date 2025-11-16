@@ -28,6 +28,16 @@ examples = [
     # "opencv-python",
     # "pandas",
     # "tqdm",
+    "aiortsp>=1.4.0",
+    "pupil-labs-realtime-api>=1.7.2",
+    "pyqtdarktheme>=2.1.0",
+    "pyside6>=6.10.0",
+    "qimage2ndarray>=1.10.0",
+]
+usb = [
+    "pyusb>=1.3.1",
+    "pyrav4l2>=1.0",
+    "pupil-labs-uvc @ git+https://github.com/pupil-labs/pyuvc.git@v1.0.0",
 ]
 
 [project.urls]
@@ -69,20 +79,6 @@ pyrav4l2 = { git = "https://github.com/antmicro/pyrav4l2.git" }
 requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
-[dependency-groups]
-examples = [
-    "aiortsp>=1.4.0",
-    "pupil-labs-realtime-api>=1.7.2",
-    "pyqtdarktheme>=2.1.0",
-    "pyside6>=6.10.0",
-    "qimage2ndarray>=1.10.0",
-]
-usb = [
-    "pyusb>=1.3.1",
-    "pyrav4l2>=1.0",
-    "pupil-labs-uvc>=1.0.0",
-]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 log_format = '%(asctime)s %(levelname)7s %(name)-60s | %(message)-100s "%(pathname)s:%(lineno)s"'
@@ -104,3 +100,6 @@ source = "uv-dynamic-versioning"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pupil_labs"]
+
+[tool.hatch.metadata]
+allow-direct-references = true

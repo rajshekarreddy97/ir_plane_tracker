@@ -867,7 +867,10 @@ class Tracker:
         else:
             self.params = params
 
-        self.debug = DebugData(self.params)
+        if self.params.debug:
+            self.debug = DebugData(self.params)
+        else:
+            self.debug = None
 
     @property
     def params(self) -> TrackerParams:
@@ -927,13 +930,16 @@ class Tracker:
             self.params.thresh_c,
         )
 
-        self.debug.img_thresholded = img.copy()
+        if self.params.debug:
+            self.debug.img_thresholded = img.copy()
 
         contours, _ = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-        self.debug.contours_raw = contours
+        if self.params.debug:
+            self.debug.contours_raw = contours
 
         contour_areas = [cv2.contourArea(c) for c in contours]
-        self.debug.contour_areas = contour_areas
+        if self.params.debug:
+            self.debug.contour_areas = contour_areas
         line_contours = [
             c
             for c, a in zip(contours, contour_areas, strict=False)
@@ -949,18 +955,21 @@ class Tracker:
             and len(c) >= self.params.min_contour_support
         ]
 
-        self.debug.contours_line = line_contours
-        self.debug.contours_ellipse = ellipse_contours
+        if self.params.debug:
+            self.debug.contours_line = line_contours
+            self.debug.contours_ellipse = ellipse_contours
 
         return line_contours, ellipse_contours
 
     def fit_line_fragments(self, contours: list[np.ndarray]) -> list[Fragment]:
         fragments = [Fragment(c) for c in contours]
-        self.debug.fragments_raw = fragments.copy()
+        if self.params.debug:
+            self.debug.fragments_raw = fragments.copy()
         fragment_start_pts = np.array([f.start_pt for f in fragments])
         fragment_end_pts = np.array([f.end_pt for f in fragments])
         fragments_length = np.linalg.norm(fragment_end_pts - fragment_start_pts, axis=1)
-        self.debug.fragments_length = fragments_length
+        if self.params.debug:
+            self.debug.fragments_length = fragments_length
 
         length_mask = (fragments_length >= self.params.fragments_min_length) & (
             fragments_length <= self.params.fragments_max_length
@@ -977,7 +986,8 @@ class Tracker:
         fragments = [
             frag for frag, keep in zip(fragments, projection_mask, strict=True) if keep
         ]
-        self.debug.fragments_filtered = fragments.copy()
+        if self.params.debug:
+            self.debug.fragments_filtered = fragments.copy()
 
         return fragments
 
@@ -991,7 +1001,8 @@ class Tracker:
             ellipse = Ellipse(*ellipse)  # type: ignore
             ellipses.append(ellipse)
 
-        self.debug.ellipses_raw = ellipses
+        if self.params.debug:
+            self.debug.ellipses_raw = ellipses
 
         ellipses_filtered = []
         for ellipse in ellipses:
@@ -1034,7 +1045,8 @@ class Tracker:
 
             if add_ellipse:
                 ellipses_deduplicated.append(ellipse)
-        self.debug.ellipses_filtered = ellipses_deduplicated
+        if self.params.debug:
+            self.debug.ellipses_filtered = ellipses_deduplicated
 
         return ellipses_deduplicated
 
@@ -1110,14 +1122,16 @@ class Tracker:
                     feature_lines.append(FeatureLine(feature_line_points, t_values))
                     cr_values.append(cr)
 
-        self.debug.feature_lines_candidates = feature_lines
-        self.debug.cr_values = cr_values
+        if self.params.debug:
+            self.debug.feature_lines_candidates = feature_lines
+            self.debug.cr_values = cr_values
 
         line_lengths = [
             np.linalg.norm(line.points[1] - line.points[0]) for line in feature_lines
         ]
 
-        self.debug.feature_lines_lengths = line_lengths
+        if self.params.debug:
+            self.debug.feature_lines_lengths = line_lengths
 
         feature_lines = [
             line
@@ -1128,7 +1142,8 @@ class Tracker:
             and length <= self.params.max_feature_line_length
         ]
 
-        self.debug.feature_lines_filtered = feature_lines
+        if self.params.debug:
+            self.debug.feature_lines_filtered = feature_lines
 
         return feature_lines
 
@@ -1173,7 +1188,8 @@ class Tracker:
         rvec = tvec = None
         mean_error = float("inf")
         num_optimizations = 0
-        self.debug.optimization_errors = []
+        if self.params.debug:
+            self.debug.optimization_errors = []
         for combination in combinations:
             obj_points, img_points = self.get_obj_and_img_points(combination)
 
@@ -1191,7 +1207,8 @@ class Tracker:
 
             mean_error = self.reprojection_error(obj_points, img_points, rvec, tvec)
 
-            self.debug.optimization_errors.append(mean_error)
+            if self.params.debug:
+                self.debug.optimization_errors.append(mean_error)
 
             if mean_error < self.params.optimization_error_threshold:
                 break
@@ -1199,7 +1216,7 @@ class Tracker:
         if mean_error >= self.params.optimization_error_threshold:
             rvec = tvec = None
 
-        if rvec is not None and tvec is not None:
+        if self.params.debug and rvec is not None and tvec is not None:
             self.debug.optimization_final_combination = combination
 
         return rvec, tvec
@@ -1221,7 +1238,8 @@ class Tracker:
             self.dist_coeffs,
         )
         img_corners = img_corners.squeeze().astype(np.float64)
-        self.debug.plane_corners = img_corners
+        if self.params.debug:
+            self.debug.plane_corners = img_corners
 
         norm_corners = np.array([
             [0, 0, 0],
@@ -1242,15 +1260,15 @@ class Tracker:
         return localization
 
     def __call__(self, image: npt.NDArray[np.uint8]) -> PlaneLocalization | None:
-        self.debug = DebugData(self.params)
-        self.debug.img_raw = image.copy()
+        if self.params.debug:
+            # Reset the debug data for the new frame
+            self.debug = DebugData(self.params)
+            self.debug.img_raw = image.copy()
         # image = cv2.undistort(image, self.camera_matrix, self.dist_coeffs)
 
-        if self.params.debug:
-            self.vis = image.copy()
-
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        self.debug.img_gray = image.copy()
+        if self.params.debug:
+            self.debug.img_gray = image.copy()
 
         line_contours, ellipse_contours = self.get_contours(image)
         if len(line_contours) < self.params.min_line_contour_count:
